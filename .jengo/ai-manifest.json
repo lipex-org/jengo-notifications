@@ -17,15 +17,81 @@
     "trait": "Jengo\\Notifications\\Concerns\\Notifiable",
     "description": "Applied to Entities or Models to enable direct notification dispatching and in-app database alert management.",
     "methods": {
-      "notify": "$user->notify(Notification $notification): void",
-      "notifyNow": "$user->notifyNow(Notification $notification, ?array $channels = null): void",
-      "notifications": "$user->notifications(?int $limit = null, int $offset = 0): array",
-      "unreadNotifications": "$user->unreadNotifications(?int $limit = null, int $offset = 0): array",
-      "readNotifications": "$user->readNotifications(?int $limit = null, int $offset = 0): array",
-      "unreadNotificationsCount": "$user->unreadNotificationsCount(): int",
-      "markAllNotificationsAsRead": "$user->markAllNotificationsAsRead(): int"
-    }
+      "notify": "$user->notify(Notification $notification): void (dispatches notification to recipient)",
+      "notifyNow": "$user->notifyNow(Notification $notification, ?array $channels = null): void (dispatches immediately)",
+      "notifications": "$user->notifications(?int $limit = null, int $offset = 0): array (returns all in-app notifications)",
+      "unreadNotifications": "$user->unreadNotifications(?int $limit = null, int $offset = 0): array (returns unread notifications)",
+      "readNotifications": "$user->readNotifications(?int $limit = null, int $offset = 0): array (returns read notifications)",
+      "unreadNotificationsCount": "$user->unreadNotificationsCount(): int (count of unread notifications)",
+      "markAllNotificationsAsRead": "$user->markAllNotificationsAsRead(): int (marks all notifications as read)",
+      "routeNotificationFor": "$user->routeNotificationFor(string $channel, ?Notification $notification = null): mixed (resolves channel address/target)"
+    },
+    "usage": "class User extends BaseEntity { use Notifiable; }"
   },
+  "contracts": [
+    {
+      "name": "ShouldQueue",
+      "class": "Jengo\\Notifications\\Contracts\\ShouldQueue",
+      "description": "Marker interface indicating that notifications should be pushed to background workers via codeigniter4/queue."
+    },
+    {
+      "name": "ChannelInterface",
+      "class": "Jengo\\Notifications\\Contracts\\ChannelInterface",
+      "description": "Contract for delivery channels implementing send(object $notifiable, Notification $notification): mixed."
+    },
+    {
+      "name": "SmsDriverInterface",
+      "class": "Jengo\\Notifications\\Contracts\\SmsDriverInterface",
+      "description": "Contract for custom SMS drivers implementing send(string $to, SmsMessage $message): string|bool."
+    },
+    {
+      "name": "PushDriverInterface",
+      "class": "Jengo\\Notifications\\Contracts\\PushDriverInterface",
+      "description": "Contract for custom Push notification drivers implementing send(string|array $target, PushMessage $message): bool|array."
+    }
+  ],
+  "queuing": {
+    "contract": "Jengo\\Notifications\\Contracts\\ShouldQueue",
+    "job": "Jengo\\Notifications\\Jobs\\SendQueuedNotification",
+    "description": "Native asynchronous queuing built on codeigniter4/queue. Notifications implementing ShouldQueue are serialized and pushed to background workers.",
+    "properties": {
+      "queue": "public ?string $queue = 'default'; (specifies background queue name)",
+      "delay": "public ?int $delay = null; (delay in seconds before worker execution)",
+      "tries": "public int $tries = 3; (maximum retry attempts)",
+      "timeout": "public int $timeout = 60; (maximum job execution runtime)",
+      "backoff": "public array|int $backoff = [5, 15, 60]; (retry intervals in seconds)"
+    },
+    "usage": "class OrderShipped extends Notification implements ShouldQueue { public ?string $queue = 'emails'; }"
+  },
+  "entities": [
+    {
+      "class": "Jengo\\Notifications\\Entities\\DatabaseNotification",
+      "description": "BaseEntity representation of an in-app database notification with built-in accessors and action helpers.",
+      "methods": {
+        "read": "read(): bool (checks if notification has been read)",
+        "unread": "unread(): bool (checks if notification is unread)",
+        "markAsRead": "markAsRead(): static (sets read_at timestamp and persists update)",
+        "markAsUnread": "markAsUnread(): static (clears read_at timestamp and persists update)",
+        "title": "title(): ?string (retrieves notification title from payload)",
+        "message": "message(): ?string (retrieves notification message body)",
+        "link": "link(): ?string (retrieves target action URL link)",
+        "url": "url(): ?string (alias for link())",
+        "actionText": "actionText(): ?string (retrieves action button label text)",
+        "level": "level(): string (returns alert severity: info, success, warning, error)",
+        "icon": "icon(): ?string (retrieves custom icon identifier)",
+        "getData": "getData(): array (returns decoded payload array)"
+      },
+      "usage": "$notification = $user->unreadNotifications()[0]; echo $notification->title(); $notification->markAsRead();"
+    }
+  ],
+  "models": [
+    {
+      "class": "Jengo\\Notifications\\Models\\NotificationModel",
+      "description": "CodeIgniter 4 Model for querying and persisting records in the notifications table.",
+      "table": "notifications",
+      "returnType": "Jengo\\Notifications\\Entities\\DatabaseNotification"
+    }
+  ],
   "messages": [
     {
       "class": "Jengo\\Notifications\\Messages\\MailMessage",
@@ -45,7 +111,8 @@
         "attach(string $file, array $options = []): static",
         "attachData(string $data, string $name, array $options = []): static",
         "theme(string $theme): static (default, minimal, dark)",
-        "view(string $view, array $data = []): static"
+        "view(string $view, array $data = []): static",
+        "toPlainText(): string"
       ]
     },
     {
@@ -68,6 +135,7 @@
         "message(string $message): static",
         "link(string $url, ?string $text = null): static",
         "action(string $text, string $url): static",
+        "actionText(string $text): static",
         "level(string $level): static (info, success, warning, error)",
         "icon(string $icon): static",
         "data(array $data): static",
@@ -208,6 +276,23 @@
       }
     ]
   },
+  "events": [
+    {
+      "name": "notifications.sending",
+      "class": "Jengo\\Notifications\\Events\\NotificationSending",
+      "description": "Triggered before a notification is dispatched on a specific channel. Allows listeners to halt or inspect."
+    },
+    {
+      "name": "notifications.sent",
+      "class": "Jengo\\Notifications\\Events\\NotificationSent",
+      "description": "Triggered after a notification is successfully sent across a channel. Carries recipient, notification, and channel response."
+    },
+    {
+      "name": "notifications.failed",
+      "class": "Jengo\\Notifications\\Events\\NotificationFailed",
+      "description": "Triggered when delivery on a channel throws an exception. Carries the captured Throwable instance."
+    }
+  ],
   "testing": {
     "fake": "Jengo\\Notifications\\Testing\\NotificationFake",
     "activation": "Notification::fake(): NotificationFake",
@@ -235,8 +320,8 @@
   ],
   "commands": [
     {
-      "name": "jengo:make notification <name>",
-      "description": "Generate a new Jengo notification class boilerplate."
+      "name": "make:notification <name> [--queue]",
+      "description": "Generate a new Jengo notification class with optional queueing."
     },
     {
       "name": "notifications:table",
