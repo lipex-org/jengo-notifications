@@ -1,0 +1,257 @@
+{
+  "name": "jengo/notifications",
+  "description": "Enterprise-grade multi-channel notification engine for CodeIgniter 4 and the Jengo Framework. Supports transactional responsive Email, regional & global SMS (Twilio and Africa's Talking with link embedding), In-App Database alerts with action links, Push notifications (WebPush & FCM), Webhooks, Slack, and real-time SSE/WebSocket broadcasting.",
+  "version": "1.0.0",
+  "facade": {
+    "class": "Jengo\\Notifications\\Notification",
+    "description": "Primary static entry point providing fluent notification dispatching, on-demand routing, immediate execution, and testing fakes.",
+    "methods": {
+      "send": "Notification::send(mixed $notifiables, Notification $notification): void (dispatches notification, auto-queueing if ShouldQueue)",
+      "sendNow": "Notification::sendNow(mixed $notifiables, Notification $notification, ?array $channels = null): void (dispatches immediately)",
+      "route": "Notification::route(string $channel, mixed $route): AnonymousNotifiable (creates on-demand ad-hoc recipient)",
+      "fake": "Notification::fake(): NotificationFake (intercepts all notifications for zero-cost testing)"
+    },
+    "usage": "Notification::send($users, new InvoicePaidNotification($invoice));"
+  },
+  "notifiable": {
+    "trait": "Jengo\\Notifications\\Concerns\\Notifiable",
+    "description": "Applied to Entities or Models to enable direct notification dispatching and in-app database alert management.",
+    "methods": {
+      "notify": "$user->notify(Notification $notification): void",
+      "notifyNow": "$user->notifyNow(Notification $notification, ?array $channels = null): void",
+      "notifications": "$user->notifications(?int $limit = null, int $offset = 0): array",
+      "unreadNotifications": "$user->unreadNotifications(?int $limit = null, int $offset = 0): array",
+      "readNotifications": "$user->readNotifications(?int $limit = null, int $offset = 0): array",
+      "unreadNotificationsCount": "$user->unreadNotificationsCount(): int",
+      "markAllNotificationsAsRead": "$user->markAllNotificationsAsRead(): int"
+    }
+  },
+  "messages": [
+    {
+      "class": "Jengo\\Notifications\\Messages\\MailMessage",
+      "description": "Fluent builder for mobile-responsive HTML emails with inline styles, bulletproof buttons, tables, and callouts.",
+      "methods": [
+        "subject(string $subject): static",
+        "greeting(string $greeting): static",
+        "line(string $line): static",
+        "action(string $text, string $url, string $color = 'primary'): static",
+        "panel(string $text): static",
+        "table(array $headers, array $rows): static",
+        "salutation(string $salutation): static",
+        "from(string $address, ?string $name = null): static",
+        "replyTo(string $address, ?string $name = null): static",
+        "cc(string|array $address): static",
+        "bcc(string|array $address): static",
+        "attach(string $file, array $options = []): static",
+        "attachData(string $data, string $name, array $options = []): static",
+        "theme(string $theme): static (default, minimal, dark)",
+        "view(string $view, array $data = []): static"
+      ]
+    },
+    {
+      "class": "Jengo\\Notifications\\Messages\\SmsMessage",
+      "description": "Fluent builder for SMS alerts supporting sender IDs and embedded URL links.",
+      "methods": [
+        "content(string $content): static",
+        "link(string $url, ?string $label = null): static (embeds or appends clickable action link)",
+        "sender(string $senderId): static (alphanumeric sender ID)",
+        "from(string $from): static",
+        "to(string $to): static",
+        "getContent(): string"
+      ]
+    },
+    {
+      "class": "Jengo\\Notifications\\Messages\\DatabaseMessage",
+      "description": "DTO for in-app notifications with action links, levels, and icons.",
+      "methods": [
+        "title(string $title): static",
+        "message(string $message): static",
+        "link(string $url, ?string $text = null): static",
+        "action(string $text, string $url): static",
+        "level(string $level): static (info, success, warning, error)",
+        "icon(string $icon): static",
+        "data(array $data): static",
+        "toArray(): array"
+      ]
+    },
+    {
+      "class": "Jengo\\Notifications\\Messages\\PushMessage",
+      "description": "DTO for WebPush and Firebase Cloud Messaging alerts.",
+      "methods": [
+        "title(string $title): static",
+        "body(string $body): static",
+        "icon(string $icon): static",
+        "badge(string $badge): static",
+        "image(string $image): static",
+        "clickAction(string $url): static",
+        "link(string $url): static",
+        "data(array $data): static",
+        "sound(string $sound): static"
+      ]
+    },
+    {
+      "class": "Jengo\\Notifications\\Messages\\SlackMessage",
+      "description": "DTO for Slack Webhook notifications and Block Kit layouts.",
+      "methods": [
+        "text(string $text): static",
+        "header(string $text): static",
+        "section(string $markdown): static",
+        "fields(array $fields): static",
+        "button(string $text, string $url, string $style = 'primary'): static",
+        "divider(): static",
+        "channel(string $channel): static",
+        "username(string $username): static",
+        "iconUrl(string $url): static"
+      ]
+    },
+    {
+      "class": "Jengo\\Notifications\\Messages\\WebhookMessage",
+      "description": "DTO for custom HTTP webhooks with HMAC-SHA256 request signing.",
+      "methods": [
+        "url(string $url): static",
+        "data(array $data): static",
+        "header(string $name, string $value): static",
+        "secret(string $secret): static (generates X-Jengo-Signature header)",
+        "timeout(int $seconds): static"
+      ]
+    },
+    {
+      "class": "Jengo\\Notifications\\Messages\\BroadcastMessage",
+      "description": "DTO for real-time SSE / WebSocket alerts via jengo/broadcasting.",
+      "methods": [
+        "data(array $data): static",
+        "event(string $event): static",
+        "channel(string $channel): static"
+      ]
+    }
+  ],
+  "channels": [
+    {
+      "name": "mail",
+      "class": "Jengo\\Notifications\\Channels\\MailChannel",
+      "description": "Dispatches transactional emails via CodeIgniter 4 email service with inline CSS templates."
+    },
+    {
+      "name": "database",
+      "class": "Jengo\\Notifications\\Channels\\DatabaseChannel",
+      "description": "Stores notifications in the database table with action links and read/unread status."
+    },
+    {
+      "name": "sms",
+      "class": "Jengo\\Notifications\\Channels\\SmsChannel",
+      "description": "Routes SMS messages to configured driver (Twilio, Africa's Talking, Log, Null)."
+    },
+    {
+      "name": "push",
+      "class": "Jengo\\Notifications\\Channels\\PushChannel",
+      "description": "Delivers push notifications via WebPush (VAPID) or Firebase Cloud Messaging (FCM v1)."
+    },
+    {
+      "name": "slack",
+      "class": "Jengo\\Notifications\\Channels\\SlackChannel",
+      "description": "Posts formatted messages and Block Kit elements to Slack Incoming Webhook URLs."
+    },
+    {
+      "name": "webhook",
+      "class": "Jengo\\Notifications\\Channels\\WebhookChannel",
+      "description": "Delivers secure JSON webhooks with HMAC-SHA256 signatures."
+    },
+    {
+      "name": "broadcast",
+      "class": "Jengo\\Notifications\\Channels\\BroadcastChannel",
+      "description": "Broadcasts real-time events to client WebSockets or SSE channels via jengo/broadcasting."
+    }
+  ],
+  "drivers": {
+    "sms": [
+      {
+        "name": "africas_talking",
+        "class": "Jengo\\Notifications\\Drivers\\Sms\\AfricasTalkingDriver",
+        "description": "Africa's Talking SMS API driver with E.164 normalization and alphanumeric sender ID."
+      },
+      {
+        "name": "twilio",
+        "class": "Jengo\\Notifications\\Drivers\\Sms\\TwilioDriver",
+        "description": "Twilio REST API driver for global SMS delivery."
+      },
+      {
+        "name": "log",
+        "class": "Jengo\\Notifications\\Drivers\\Sms\\LogSmsDriver",
+        "description": "Writes SMS messages to application log file for development and inspection."
+      },
+      {
+        "name": "null",
+        "class": "Jengo\\Notifications\\Drivers\\Sms\\NullSmsDriver",
+        "description": "Silently discards SMS messages for tests."
+      }
+    ],
+    "push": [
+      {
+        "name": "fcm",
+        "class": "Jengo\\Notifications\\Drivers\\Push\\FcmPushDriver",
+        "description": "Google Firebase Cloud Messaging v1 HTTP API driver."
+      },
+      {
+        "name": "webpush",
+        "class": "Jengo\\Notifications\\Drivers\\Push\\WebPushDriver",
+        "description": "Pure-PHP VAPID Web Push protocol driver."
+      },
+      {
+        "name": "log",
+        "class": "Jengo\\Notifications\\Drivers\\Push\\LogPushDriver",
+        "description": "Writes push notifications to application log file."
+      },
+      {
+        "name": "null",
+        "class": "Jengo\\Notifications\\Drivers\\Push\\NullPushDriver",
+        "description": "Silently discards push notifications for tests."
+      }
+    ]
+  },
+  "testing": {
+    "fake": "Jengo\\Notifications\\Testing\\NotificationFake",
+    "activation": "Notification::fake(): NotificationFake",
+    "trait": "Jengo\\Notifications\\Testing\\Concerns\\NotificationTestAssertionsTrait",
+    "assertions": [
+      "$fake->assertSentTo(mixed $notifiable, string $notificationClass, ?callable $callback = null)",
+      "$fake->assertNotSentTo(mixed $notifiable, string $notificationClass, ?callable $callback = null)",
+      "$fake->assertSentOnChannel(string $channel, string $notificationClass)",
+      "$fake->assertSentTimes(string $notificationClass, int $expectedCount)",
+      "$fake->assertNothingSent()",
+      "$fake->assertCount(int $expectedCount)"
+    ]
+  },
+  "helpers": [
+    {
+      "name": "notify",
+      "signature": "notify(mixed $notifiables, Notification $notification): void",
+      "description": "Dispatch a notification to one or multiple notifiables."
+    },
+    {
+      "name": "notification",
+      "signature": "notification(?string $channel = null, mixed $route = null): NotificationManager|AnonymousNotifiable",
+      "description": "Get NotificationManager instance or start an on-demand notification."
+    }
+  ],
+  "commands": [
+    {
+      "name": "jengo:make notification <name>",
+      "description": "Generate a new Jengo notification class boilerplate."
+    },
+    {
+      "name": "notifications:table",
+      "description": "Generate a migration file for the notifications database table."
+    },
+    {
+      "name": "notifications:test <channel> <recipient>",
+      "description": "Send a test notification across a specified channel to verify credentials."
+    }
+  ],
+  "installers": [
+    {
+      "class": "Jengo\\Notifications\\Installers\\NotificationsInstaller",
+      "command": "php spark jengo:install notifications",
+      "description": "Publishes app/Config/Notifications.php and scaffolds notifications table migration."
+    }
+  ]
+}
