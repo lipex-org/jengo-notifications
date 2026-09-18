@@ -71,4 +71,10 @@ final class QueuedNotificationTest extends CIUnitTestCase
         $this->assertTrue($job->process());
         $fake->assertSentTo($user, QueuedTestNotification::class);
     }
+
+    public function testSendQueuedNotificationExtendsCi4BaseJob(): void
+    {
+        $job = new SendQueuedNotification([]);
+        $this->assertInstanceOf(\CodeIgniter\Queue\BaseJob::class, $job);
+    }
 }

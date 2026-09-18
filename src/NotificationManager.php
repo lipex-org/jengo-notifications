@@ -174,6 +174,10 @@ class NotificationManager
                         'notification' => serialize($notification),
                         'notifiables'  => serialize($notifiables),
                     ];
+                    if (!empty($notification->delay) && method_exists($queue, 'setDelay')) {
+                        $queue->setDelay((int) $notification->delay);
+                    }
+
                     $queue->push($queueName, SendQueuedNotification::class, $data);
                     return;
                 }
