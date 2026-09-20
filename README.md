@@ -7,7 +7,7 @@ Documentation: https://lipex-org.github.io/jengophp.com/packages/notifications
 ## Features
 
 - Multi-Channel Architecture: Deliver notifications seamlessly across Email, SMS, In-App Database, WebPush, Firebase Cloud Messaging (FCM v1), Webhooks, Slack, and Real-Time SSE/WebSocket Broadcasts.
-- First-Class SMS Providers: Native zero-dependency cURL drivers for Africa's Talking (with E.164 phone normalization) and Twilio, alongside local Log and Null drivers.
+- First-Class SMS Providers: Native zero-dependency cURL drivers for SMSGate (SMS Gateway for Android™ / local server & cloud), Africa's Talking (with E.164 phone normalization), and Twilio, alongside local Log and Null drivers.
 - In-App Database Alerts: Clean schema with actionable URL links, button labels, severity levels, and unread scopes integrated into `BaseEntity`.
 - Responsive Email Layouts: Pre-designed HTML/plain-text responsive email themes (default, minimal, dark) featuring Outlook VML bulletproof action buttons and markdown support.
 - Asynchronous Queuing: Native integration with official `codeigniter4/queue` via the `ShouldQueue` contract, automatically serializing models and notifiables.
@@ -144,7 +144,25 @@ foreach ($unread as $notification) {
 $user->markAsRead();
 ```
 
-### 6. Testing
+### 6. SMS Providers & Android Gateway (SMSGate)
+
+Configure your preferred driver in `app/Config/Notifications.php`:
+
+```php
+public string $defaultSmsDriver = 'sms_gate'; // 'sms_gate', 'africas_talking', 'twilio', 'log', 'null'
+
+public array $smsGate = [
+    'serverUrl'          => 'http://localhost:8080', // Or Android Emulator: http://10.0.2.2:8080 or Cloud: https://api.sms-gate.app
+    'login'              => 'admin',
+    'password'           => 'secret',
+    'simNumber'          => 1, // Optional SIM slot (1-3)
+    'defaultCountryCode' => '+254',
+];
+```
+
+For local testing, install the [SMS Gateway for Android™](https://docs.sms-gate.app/) app on an Android device or Android Studio emulator on the same network. The driver sends JSON payloads with E.164 phone normalization directly to the device HTTP REST API.
+
+### 7. Testing
 
 ```php
 use App\Notifications\InvoicePaid;

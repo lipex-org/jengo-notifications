@@ -9,6 +9,7 @@ use Jengo\Notifications\Contracts\SmsDriverInterface;
 use Jengo\Notifications\Drivers\Sms\AfricasTalkingDriver;
 use Jengo\Notifications\Drivers\Sms\LogSmsDriver;
 use Jengo\Notifications\Drivers\Sms\NullSmsDriver;
+use Jengo\Notifications\Drivers\Sms\SmsGateDriver;
 use Jengo\Notifications\Drivers\Sms\TwilioDriver;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\SmsMessage;
@@ -67,6 +68,7 @@ class SmsChannel implements ChannelInterface
         return match ($driverName) {
             'africas_talking', 'africastalking' => new AfricasTalkingDriver(),
             'twilio'                           => new TwilioDriver(),
+            'sms_gate', 'smsgate', 'sms-gate'  => new SmsGateDriver(),
             'null'                             => new NullSmsDriver(),
             default                            => new LogSmsDriver(),
         };

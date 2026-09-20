@@ -15,7 +15,7 @@ class Notifications extends BaseConfig
 
     /**
      * Default SMS provider driver.
-     * Supported: 'africas_talking', 'twilio', 'log', 'null'
+     * Supported: 'africas_talking', 'twilio', 'sms_gate', 'log', 'null'
      */
     public string $defaultSmsDriver = 'log';
 
@@ -36,6 +36,20 @@ class Notifications extends BaseConfig
         'accountSid' => '',
         'authToken'  => '',
         'fromNumber' => '',
+    ];
+
+    /**
+     * SMSGate (SMS Gateway for Android™) API configuration.
+     * Compatible with local emulator/device server (e.g. http://localhost:8080/message)
+     * and Cloud/Private server (e.g. https://api.sms-gate.app/3rdparty/v1/messages).
+     */
+    public array $smsGate = [
+        'serverUrl'          => 'http://localhost:8080',
+        'login'              => '',
+        'password'           => '',
+        'simNumber'          => null, // Optional SIM slot (1, 2, or 3)
+        'defaultCountryCode' => '+254',
+        'timeout'            => 15,
     ];
 
     /**
