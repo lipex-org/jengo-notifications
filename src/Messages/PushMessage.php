@@ -95,6 +95,8 @@ class PushMessage
             ]),
             'webpush' => [
                 'notification' => [
+                    'title' => $this->title,
+                    'body'  => $this->body,
                     'badge' => $this->badge,
                     'icon'  => $this->icon,
                     'image' => $this->image,
