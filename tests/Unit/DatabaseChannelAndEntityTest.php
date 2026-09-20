@@ -45,4 +45,11 @@ final class DatabaseChannelAndEntityTest extends CIUnitTestCase
         $this->assertTrue($notification->read());
         $this->assertFalse($notification->unread());
     }
+
+    public function testCreateNotificationsTableMigrationClass(): void
+    {
+        require_once dirname(__DIR__, 2) . '/src/Database/Migrations/2026-09-20-165008_CreateNotificationsTable.php';
+        $migration = new \Jengo\Notifications\Database\Migrations\CreateNotificationsTable();
+        $this->assertInstanceOf(\CodeIgniter\Database\Migration::class, $migration);
+    }
 }

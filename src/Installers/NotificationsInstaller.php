@@ -55,8 +55,8 @@ class NotificationsInstaller extends AbstractInstaller
         $this->writeFile($dest, $content);
         CLI::write('Published Config/Notifications.php successfully.', 'green');
 
-        // Trigger notifications table migration scaffolding
+        // Notify user about package migrations
         CLI::newLine();
-        command('notifications:table');
+        CLI::write("Run 'php spark migrate --all' to execute notifications database migration.", 'cyan');
     }
 }
