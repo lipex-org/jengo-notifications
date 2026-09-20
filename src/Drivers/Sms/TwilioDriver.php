@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Jengo\Notifications\Drivers\Sms;
 
+use Config\Services;
 use Jengo\Notifications\Contracts\SmsDriverInterface;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\SmsMessage;
+use Throwable;
 
 class TwilioDriver implements SmsDriverInterface
 {
@@ -47,31 +49,30 @@ class TwilioDriver implements SmsDriverInterface
             'Body' => $message->getContent(),
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_USERPWD        => "{$this->accountSid}:{$this->authToken}",
-            CURLOPT_POSTFIELDS     => http_build_query($data),
-            CURLOPT_TIMEOUT        => 15,
+        $client = Services::curlrequest([
+            'timeout'     => 15.0,
+            'http_errors' => false,
+            'auth'        => [$this->accountSid, $this->authToken, 'basic'],
         ]);
 
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
-        curl_close($ch);
+        try {
+            $response = $client->post($url, [
+                'form_params' => $data,
+            ]);
 
-        if ($error) {
-            throw CouldNotSendNotificationException::serviceRespondedWithError('twilio', $error);
+            $httpCode = $response->getStatusCode();
+            $rawBody  = (string) $response->getBody();
+        } catch (Throwable $e) {
+            throw CouldNotSendNotificationException::serviceRespondedWithError('twilio', $e->getMessage());
         }
 
-        $result = json_decode((string) $response, true);
+        $result = json_decode($rawBody, true);
 
         if ($httpCode >= 200 && $httpCode < 300) {
             return $result['sid'] ?? true;
         }
 
         $msg = $result['message'] ?? "HTTP error {$httpCode}";
-        throw CouldNotSendNotificationException::serviceRespondedWithError('twilio', $msg);
+        throw CouldNotSendNotificationException::serviceRespondedWithError('twilio', (string) $msg);
     }
 }

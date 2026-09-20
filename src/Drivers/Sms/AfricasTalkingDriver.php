@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Jengo\Notifications\Drivers\Sms;
 
+use Config\Services;
 use Jengo\Notifications\Contracts\SmsDriverInterface;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\SmsMessage;
+use Throwable;
 
 class AfricasTalkingDriver implements SmsDriverInterface
 {
@@ -53,29 +55,27 @@ class AfricasTalkingDriver implements SmsDriverInterface
             $data['from'] = $from;
         }
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => [
-                "apiKey: {$this->apiKey}",
-                'Accept: application/json',
-                'Content-Type: application/x-www-form-urlencoded',
-            ],
-            CURLOPT_POSTFIELDS     => http_build_query($data),
-            CURLOPT_TIMEOUT        => 15,
+        $client = Services::curlrequest([
+            'timeout'     => 15.0,
+            'http_errors' => false,
         ]);
 
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
-        curl_close($ch);
+        try {
+            $response = $client->post($url, [
+                'headers' => [
+                    'apiKey' => $this->apiKey,
+                    'Accept' => 'application/json',
+                ],
+                'form_params' => $data,
+            ]);
 
-        if ($error) {
-            throw CouldNotSendNotificationException::serviceRespondedWithError('africas_talking', $error);
+            $httpCode = $response->getStatusCode();
+            $rawBody  = (string) $response->getBody();
+        } catch (Throwable $e) {
+            throw CouldNotSendNotificationException::serviceRespondedWithError('africas_talking', $e->getMessage());
         }
 
-        $result = json_decode((string) $response, true);
+        $result = json_decode($rawBody, true);
 
         if ($httpCode >= 200 && $httpCode < 300 && isset($result['SMSMessageData'])) {
             $recipients = $result['SMSMessageData']['Recipients'] ?? [];
@@ -94,8 +94,8 @@ class AfricasTalkingDriver implements SmsDriverInterface
             return true;
         }
 
-        $msg = $result['errorMessage'] ?? "HTTP error {$httpCode}: " . (string) $response;
-        throw CouldNotSendNotificationException::serviceRespondedWithError('africas_talking', $msg);
+        $msg = $result['errorMessage'] ?? "HTTP error {$httpCode}: " . $rawBody;
+        throw CouldNotSendNotificationException::serviceRespondedWithError('africas_talking', (string) $msg);
     }
 
     /**

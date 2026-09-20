@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Jengo\Notifications\Drivers\Push;
 
+use Config\Services;
 use Jengo\Notifications\Contracts\PushDriverInterface;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\PushMessage;
+use Throwable;
 
 class FcmPushDriver implements PushDriverInterface
 {
@@ -42,6 +44,10 @@ class FcmPushDriver implements PushDriverInterface
         $results = [];
         $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
         $tokenAuth = $this->getAccessToken();
+        $client = Services::curlrequest([
+            'timeout'     => 15.0,
+            'http_errors' => false,
+        ]);
 
         foreach ($tokens as $token) {
             $payload = [
@@ -56,25 +62,18 @@ class FcmPushDriver implements PushDriverInterface
                 ],
             ];
 
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST           => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER     => [
-                    "Authorization: Bearer {$tokenAuth}",
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_POSTFIELDS     => json_encode($payload),
-                CURLOPT_TIMEOUT        => 15,
-            ]);
+            try {
+                $response = $client->post($url, [
+                    'headers' => [
+                        'Authorization' => "Bearer {$tokenAuth}",
+                        'Content-Type'  => 'application/json',
+                    ],
+                    'json' => $payload,
+                ]);
 
-            $response = curl_exec($ch);
-            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error    = curl_error($ch);
-            curl_close($ch);
-
-            if ($error) {
-                throw CouldNotSendNotificationException::serviceRespondedWithError('fcm', $error);
+                $httpCode = $response->getStatusCode();
+            } catch (Throwable $e) {
+                throw CouldNotSendNotificationException::serviceRespondedWithError('fcm', $e->getMessage());
             }
 
             $results[$token] = ($httpCode >= 200 && $httpCode < 300);
@@ -121,22 +120,25 @@ class FcmPushDriver implements PushDriverInterface
         if (openssl_sign($signingInput, $signature, $sa['private_key'], 'sha256')) {
             $jwt = $signingInput . '.' . rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
 
-            $ch = curl_init('https://oauth2.googleapis.com/token');
-            curl_setopt_array($ch, [
-                CURLOPT_POST           => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POSTFIELDS     => http_build_query([
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                    'assertion'  => $jwt,
-                ]),
-                CURLOPT_TIMEOUT        => 10,
-            ]);
-            $res = curl_exec($ch);
-            curl_close($ch);
+            try {
+                $tokenClient = Services::curlrequest([
+                    'timeout'     => 10.0,
+                    'http_errors' => false,
+                ]);
 
-            $data = json_decode((string) $res, true);
-            if (!empty($data['access_token'])) {
-                return $this->accessToken = $data['access_token'];
+                $res = $tokenClient->post('https://oauth2.googleapis.com/token', [
+                    'form_params' => [
+                        'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                        'assertion'  => $jwt,
+                    ],
+                ]);
+
+                $data = json_decode((string) $res->getBody(), true);
+                if (!empty($data['access_token'])) {
+                    return $this->accessToken = $data['access_token'];
+                }
+            } catch (Throwable) {
+                return '';
             }
         }
 

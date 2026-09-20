@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Jengo\Notifications\Channels;
 
+use Config\Services;
 use Jengo\Notifications\Contracts\ChannelInterface;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\WebhookMessage;
 use Jengo\Notifications\Notification;
+use Throwable;
 
 class WebhookChannel implements ChannelInterface
 {
@@ -35,36 +37,46 @@ class WebhookChannel implements ChannelInterface
         $headers = [];
 
         foreach ($message->headers as $key => $val) {
-            $headers[] = "{$key}: {$val}";
+            if (is_int($key)) {
+                $parts = explode(':', (string) $val, 2);
+                if (count($parts) === 2) {
+                    $headers[trim($parts[0])] = trim($parts[1]);
+                }
+            } else {
+                $headers[$key] = (string) $val;
+            }
+        }
+
+        if (!isset($headers['Content-Type'])) {
+            $headers['Content-Type'] = 'application/json';
         }
 
         if (!empty($message->secret)) {
             $signature = hash_hmac('sha256', (string) $payload, $message->secret);
-            $headers[] = "X-Jengo-Signature: {$signature}";
+            $headers['X-Jengo-Signature'] = $signature;
         }
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => $payload,
-            CURLOPT_TIMEOUT        => $message->timeout,
+        $client = Services::curlrequest([
+            'timeout'     => (float) $message->timeout,
+            'http_errors' => false,
         ]);
 
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
-        curl_close($ch);
+        try {
+            $response = $client->post($url, [
+                'headers' => $headers,
+                'body'    => $payload,
+            ]);
 
-        if ($error) {
-            throw CouldNotSendNotificationException::serviceRespondedWithError('webhook', $error);
+            $httpCode = $response->getStatusCode();
+            $rawBody  = (string) $response->getBody();
+        } catch (Throwable $e) {
+            throw CouldNotSendNotificationException::serviceRespondedWithError('webhook', $e->getMessage());
         }
 
         if ($httpCode >= 200 && $httpCode < 300) {
             return true;
         }
 
-        throw CouldNotSendNotificationException::serviceRespondedWithError('webhook', "HTTP {$httpCode}: " . (string) $response);
+        throw CouldNotSendNotificationException::serviceRespondedWithError('webhook', "HTTP {$httpCode}: " . $rawBody);
     }
 }

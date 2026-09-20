@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Jengo\Notifications\Drivers\Sms;
 
+use Config\Services;
 use Jengo\Notifications\Contracts\SmsDriverInterface;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\SmsMessage;
+use Throwable;
 
 /**
  * Driver for SMS Gateway for Android™ (SMSGate).
@@ -66,36 +68,33 @@ class SmsGateDriver implements SmsDriverInterface
             $payload['simNumber'] = (int) $sim;
         }
 
-        $jsonPayload = (string) json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        $headers = [
-            'Content-Type: application/json',
-            'Accept: application/json',
+        $clientOptions = [
+            'timeout'     => (float) $this->timeout,
+            'http_errors' => false,
         ];
 
-        $ch = curl_init($endpoint);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => $jsonPayload,
-            CURLOPT_TIMEOUT        => $this->timeout,
-        ]);
-
         if (!empty($this->login) || !empty($this->password)) {
-            curl_setopt($ch, CURLOPT_USERPWD, "{$this->login}:{$this->password}");
+            $clientOptions['auth'] = [$this->login, $this->password, 'basic'];
         }
 
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error    = curl_error($ch);
-        curl_close($ch);
+        $client = Services::curlrequest($clientOptions);
 
-        if ($error) {
-            throw CouldNotSendNotificationException::serviceRespondedWithError('sms_gate', $error);
+        try {
+            $response = $client->post($endpoint, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Accept'       => 'application/json',
+                ],
+                'json' => $payload,
+            ]);
+
+            $httpCode = $response->getStatusCode();
+            $rawBody  = (string) $response->getBody();
+        } catch (Throwable $e) {
+            throw CouldNotSendNotificationException::serviceRespondedWithError('sms_gate', $e->getMessage());
         }
 
-        $result = json_decode((string) $response, true);
+        $result = json_decode($rawBody, true);
 
         if ($httpCode >= 200 && $httpCode < 300) {
             if (is_array($result) && isset($result['id'])) {
@@ -108,8 +107,8 @@ class SmsGateDriver implements SmsDriverInterface
         $msg = "HTTP error {$httpCode}";
         if (is_array($result)) {
             $msg = $result['message'] ?? $result['error'] ?? $result['description'] ?? $msg;
-        } elseif (!empty($response)) {
-            $msg .= ": " . trim((string) $response);
+        } elseif (!empty($rawBody)) {
+            $msg .= ": " . trim($rawBody);
         }
 
         throw CouldNotSendNotificationException::serviceRespondedWithError('sms_gate', (string) $msg);

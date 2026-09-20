@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Jengo\Notifications\Drivers\Push;
 
+use Config\Services;
 use Jengo\Notifications\Contracts\PushDriverInterface;
 use Jengo\Notifications\Exceptions\CouldNotSendNotificationException;
 use Jengo\Notifications\Messages\PushMessage;
+use Throwable;
 
 class WebPushDriver implements PushDriverInterface
 {
@@ -29,6 +31,10 @@ class WebPushDriver implements PushDriverInterface
         $subscriptions = is_array($target) && isset($target['endpoint']) ? [$target] : (is_array($target) ? $target : [['endpoint' => $target]]);
 
         $results = [];
+        $client = Services::curlrequest([
+            'timeout'     => 10.0,
+            'http_errors' => false,
+        ]);
 
         foreach ($subscriptions as $sub) {
             $endpoint = is_array($sub) ? ($sub['endpoint'] ?? '') : (string) $sub;
@@ -37,31 +43,22 @@ class WebPushDriver implements PushDriverInterface
                 continue;
             }
 
-            $payload = json_encode($message->toArray()['webpush']['notification'] ?? []);
+            $payload = $message->toArray()['webpush']['notification'] ?? [];
 
-            $ch = curl_init($endpoint);
-            curl_setopt_array($ch, [
-                CURLOPT_POST           => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER     => [
-                    'Content-Type: application/json',
-                    "TTL: {$message->ttl}",
-                ],
-                CURLOPT_POSTFIELDS     => $payload,
-                CURLOPT_TIMEOUT        => 10,
-            ]);
+            try {
+                $response = $client->post($endpoint, [
+                    'headers' => [
+                        'Content-Type' => 'application/json',
+                        'TTL'          => (string) $message->ttl,
+                    ],
+                    'json' => $payload,
+                ]);
 
-            $response = curl_exec($ch);
-            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error    = curl_error($ch);
-            curl_close($ch);
-
-            if ($error) {
+                $httpCode = $response->getStatusCode();
+                $results[$endpoint] = ($httpCode >= 200 && $httpCode < 300);
+            } catch (Throwable) {
                 $results[$endpoint] = false;
-                continue;
             }
-
-            $results[$endpoint] = ($httpCode >= 200 && $httpCode < 300);
         }
 
         return count($subscriptions) === 1 ? reset($results) : $results;
