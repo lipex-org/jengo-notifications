@@ -114,4 +114,25 @@ abstract class Notification
     {
         return NotificationManager::getInstance()->fake();
     }
+
+    /**
+     * Restore the notification manager to its original unmocked state.
+     */
+    public static function restore(): void
+    {
+        NotificationManager::getInstance()->unmock();
+    }
+
+    /**
+     * Dynamically proxy static calls to the active fake when in test mode.
+     */
+    public static function __callStatic(string $method, array $arguments): mixed
+    {
+        $manager = NotificationManager::getInstance();
+        if ($manager->isFake()) {
+            return $manager->fake()->{$method}(...$arguments);
+        }
+
+        throw new \BadMethodCallException("Static method Notification::{$method}() does not exist.");
+    }
 }

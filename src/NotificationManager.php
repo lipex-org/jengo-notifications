@@ -65,7 +65,11 @@ class NotificationManager
      */
     public function fake(): NotificationFake
     {
-        return $this->fake = new NotificationFake($this);
+        if ($this->fake === null) {
+            $this->fake = new NotificationFake($this);
+        }
+
+        return $this->fake;
     }
 
     /**
