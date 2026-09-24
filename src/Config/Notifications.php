@@ -40,16 +40,22 @@ class Notifications extends BaseConfig
 
     /**
      * SMSGate (SMS Gateway for Android™) API configuration.
-     * Compatible with local emulator/device server (e.g. http://localhost:8080/message)
-     * and Cloud/Private server (e.g. https://api.sms-gate.app/3rdparty/v1/messages).
+     * Compatible with local Android device/emulator (e.g. http://localhost:8080)
+     * and Cloud/Private server (e.g. https://api.sms-gate.app/3rdparty/v1).
+     * All modes use POST /messages as the send endpoint.
      */
     public array $smsGate = [
-        'serverUrl'          => 'http://localhost:8080',
-        'login'              => '',
-        'password'           => '',
-        'simNumber'          => null, // Optional SIM slot (1, 2, or 3)
-        'defaultCountryCode' => '+254',
-        'timeout'            => 15,
+        'serverUrl'            => 'http://localhost:8080',
+        'login'                => '',
+        'password'             => '',
+        'token'                => '', // Bearer / Server-Key token (takes precedence over Basic Auth)
+        'simNumber'            => null, // Optional SIM slot (1, 2, or 3)
+        'deviceId'             => null, // Optional target device ID (max 21 chars)
+        'priority'             => null, // -128, 0, 100, 127 (values > 99 bypass rate limits)
+        'withDeliveryReport'   => null, // true to request delivery confirmation
+        'skipPhoneValidation'  => false, // skip server-side phone number validation
+        'defaultCountryCode'   => '+254',
+        'timeout'              => 15,
     ];
 
     /**
