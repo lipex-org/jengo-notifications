@@ -1,4 +1,22 @@
-# Jengo Notifications
+<p align="center">
+  <a href="https://lipex-org.github.io/jengophp.com/">
+    <img src="https://raw.githubusercontent.com/lipex-org/docs/main/public/logo-full.png" width="220" alt="Jengo Logo">
+  </a>
+</p>
+
+<h1 align="center">Jengo Notifications</h1>
+
+<p align="center">
+  <strong>Unified multi-channel notifications engine (Mail, SMS, Database, Broadcast) for CodeIgniter 4 and the Jengo Framework.</strong>
+</p>
+
+<p align="center">
+  <a href="https://lipex-org.github.io/jengophp.com/packages/notifications"><strong>Documentation</strong></a> •
+  <a href="https://github.com/lipex-org/notifications/blob/main/LICENSE"><strong>License</strong></a> •
+  <a href="https://github.com/lipex-org/notifications/issues"><strong>Issues</strong></a>
+</p>
+
+---
 
 Multi-channel notification delivery engine for CodeIgniter 4 and the Jengo Framework.
 
