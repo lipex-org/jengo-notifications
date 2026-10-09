@@ -19,7 +19,7 @@ class MailChannel implements ChannelInterface
         }
 
         /** @var MailMessage $message */
-        $message = $notification->toMail($notifiable);
+        $message = \Jengo\Base\Container\Container::getInstance()->call([$notification, 'toMail'], ['notifiable' => $notifiable]);
         if (!$message instanceof MailMessage) {
             return null;
         }

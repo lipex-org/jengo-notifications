@@ -30,7 +30,7 @@ class SmsChannel implements ChannelInterface
             return null;
         }
 
-        $message = $notification->toSms($notifiable);
+        $message = \Jengo\Base\Container\Container::getInstance()->call([$notification, 'toSms'], ['notifiable' => $notifiable]);
         if (is_string($message)) {
             $message = new SmsMessage($message);
         }

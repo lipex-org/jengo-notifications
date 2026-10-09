@@ -45,19 +45,21 @@ class ChannelManager
     protected function resolve(string $name): ChannelInterface
     {
         if (isset($this->customCreators[$name])) {
-            return ($this->customCreators[$name])();
+            return \Jengo\Base\Container\Container::getInstance()->call($this->customCreators[$name]);
         }
 
-        return match ($name) {
-            'mail'      => new MailChannel(),
-            'database'  => new DatabaseChannel(),
-            'sms'       => new SmsChannel(),
-            'push'      => new PushChannel(),
-            'slack'     => new SlackChannel(),
-            'webhook'   => new WebhookChannel(),
-            'broadcast' => new BroadcastChannel(),
+        $channelClass = match ($name) {
+            'mail'      => MailChannel::class,
+            'database'  => DatabaseChannel::class,
+            'sms'       => SmsChannel::class,
+            'push'      => PushChannel::class,
+            'slack'     => SlackChannel::class,
+            'webhook'   => WebhookChannel::class,
+            'broadcast' => BroadcastChannel::class,
             default     => throw ChannelNotFoundException::forChannel($name),
         };
+
+        return \Jengo\Base\Container\Container::getInstance()->make($channelClass);
     }
 
     /**

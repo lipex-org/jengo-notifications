@@ -168,26 +168,18 @@ class NotificationManager
      */
     protected function queueNotification(mixed $notifiables, Notification $notification): void
     {
-        // Support codeigniter4/queue if installed
-        if (function_exists('service')) {
-            try {
-                $queue = service('queue');
-                if (is_object($queue) && method_exists($queue, 'push')) {
-                    $queueName = $notification->queue ?? 'default';
-                    $data = [
-                        'notification' => serialize($notification),
-                        'notifiables'  => serialize($notifiables),
-                    ];
-                    if (!empty($notification->delay) && method_exists($queue, 'setDelay')) {
-                        $queue->setDelay((int) $notification->delay);
-                    }
-
-                    $queue->push($queueName, SendQueuedNotification::class, $data);
-                    return;
-                }
-            } catch (Throwable) {
-                // Queue service not active, fall through to synchronous execution
+        if (class_exists(\Jengo\Queues\Facades\Queue::class)) {
+            $delay = (int) ($notification->delay ?? 0);
+            if ($delay > 0) {
+                \Jengo\Queues\Facades\Queue::deferLater($delay, function (NotificationManager $manager, mixed $targets, Notification $notif) {
+                    $manager->sendNow($targets, $notif);
+                }, $notifiables, $notification);
+            } else {
+                \Jengo\Queues\Facades\Queue::defer(function (NotificationManager $manager, mixed $targets, Notification $notif) {
+                    $manager->sendNow($targets, $notif);
+                }, $notifiables, $notification);
             }
+            return;
         }
 
         // Fallback: synchronous delivery when no queue driver is configured
