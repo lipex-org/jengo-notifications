@@ -7,7 +7,7 @@
 <h1 align="center">Jengo Notifications</h1>
 
 <p align="center">
-  <strong>Unified multi-channel notifications engine (Mail, SMS, Database, Broadcast) for CodeIgniter 4 and the Jengo Framework.</strong>
+  <strong>A unified multi-channel notifications engine for CodeIgniter 4 and the Jengo Framework. Seamlessly delivers across Mail, SMS, In-App Database, Push, Webhooks, Slack, and Real-Time Broadcasts.</strong>
 </p>
 
 <p align="center">
@@ -18,51 +18,21 @@
 
 ---
 
-Multi-channel notification delivery engine for CodeIgniter 4 and the Jengo Framework.
-
-Documentation: https://lipex-org.github.io/jengophp.com/packages/notifications
-
-## Features
-
-- Multi-Channel Architecture: Deliver notifications seamlessly across Email, SMS, In-App Database, WebPush, Firebase Cloud Messaging (FCM v1), Webhooks, Slack, and Real-Time SSE/WebSocket Broadcasts.
-- First-Class SMS Providers: Native zero-dependency cURL drivers for SMSGate (SMS Gateway for Android™ / local server & cloud), Africa's Talking (with E.164 phone normalization), and Twilio, alongside local Log and Null drivers.
-- In-App Database Alerts: Clean schema with actionable URL links, button labels, severity levels, and unread scopes integrated into `BaseEntity`.
-- Responsive Email Layouts: Pre-designed HTML/plain-text responsive email themes (default, minimal, dark) featuring Outlook VML bulletproof action buttons and markdown support.
-- Asynchronous Queuing: Native integration with official `codeigniter4/queue` via the `ShouldQueue` contract, automatically serializing models and notifiables.
-- Security-First Webhooks: Outgoing webhook delivery with automated HMAC-SHA256 timestamp signature generation and replay protection headers.
-- Slack Block Kit: Fluent layout builder for Slack webhooks with markdown sections, buttons, fields, and context blocks.
-- On-Demand Notifications: Send notifications to non-persisted recipients via `Notification::route('channel', 'target')->notify(...)`.
-- Zero-Cost Test Doubles: Comprehensive `Notification::fake()` with rich assertions (`assertSentTo`, `assertNotSentTo`, `assertSentOnChannel`, `assertSentTimes`, `assertNothingSent`).
-- Spark CLI Tooling: `php spark make:notification`, `php spark notifications:table`, and `php spark notifications:test`.
-
 ## Installation
 
 ```bash
 composer require jengo/notifications
-php spark notifications:table
-php spark migrate
+php spark jengo:install notifications
 ```
 
 ## Quick Start
 
-### 1. Generating a Notification
-
-```bash
-php spark make:notification InvoicePaid
-```
-
-### 2. Defining the Notification
+### 1. Define the Notification
 
 ```php
-<?php
-
-declare(strict_types=1);
-
 namespace App\Notifications;
 
-use Jengo\Notifications\Messages\DatabaseMessage;
 use Jengo\Notifications\Messages\MailMessage;
-use Jengo\Notifications\Messages\SmsMessage;
 use Jengo\Notifications\Notification;
 
 class InvoicePaid extends Notification
@@ -80,124 +50,34 @@ class InvoicePaid extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage())
-            ->subject('Invoice Paid: #' . $this->invoice['number'])
-            ->greeting('Hello ' . ($notifiable->name ?? 'Customer') . ',')
-            ->line('We have received your payment of $' . number_format($this->invoice['amount'], 2) . '.')
-            ->action('View Receipt', site_url('invoices/' . $this->invoice['id']))
-            ->salutation('Best regards, The Team');
-    }
-
-    public function toDatabase(object $notifiable): DatabaseMessage
-    {
-        return (new DatabaseMessage())
-            ->title('Invoice Paid')
-            ->message('Payment received for invoice #' . $this->invoice['number'])
-            ->link(site_url('invoices/' . $this->invoice['id']))
-            ->actionText('View Receipt')
-            ->level('success');
-    }
-
-    public function toSms(object $notifiable): SmsMessage
-    {
-        return (new SmsMessage())
-            ->line('Your payment for #' . $this->invoice['number'] . ' was successful.')
-            ->link(site_url('invoices/' . $this->invoice['id']), 'Receipt');
+            ->subject("Invoice Paid #{$this->invoice['id']}")
+            ->line("We have received your payment of \${$this->invoice['amount']}.")
+            ->action('View Receipt', site_url("invoices/{$this->invoice['id']}"));
     }
 }
 ```
 
-### 3. Adding the Notifiable Trait to Your Model or Entity
-
-```php
-namespace App\Entities;
-
-use Jengo\Base\Entities\BaseEntity;
-use Jengo\Notifications\Concerns\Notifiable;
-
-class User extends BaseEntity
-{
-    use Notifiable;
-
-    public function routeNotificationForSms(): string
-    {
-        return $this->phone_number;
-    }
-}
-```
-
-### 4. Sending Notifications
+### 2. Dispatch Notifications
 
 ```php
 use App\Notifications\InvoicePaid;
 use Jengo\Notifications\Notification;
 
-// Direct dispatch via Notifiable recipient
+// Dispatch directly via any Notifiable entity
 $user->notify(new InvoicePaid($invoice));
 
-// Static proxy dispatch
-Notification::send([$user1, $user2], new InvoicePaid($invoice));
+// Dispatch to multiple recipients
+Notification::send([$admin, $customer], new InvoicePaid($invoice));
 
-// On-demand notification to non-persisted recipient
-Notification::route('mail', 'finance@partner.com')
+// On-demand notification to ad-hoc recipients
+Notification::route('mail', 'billing@example.com')
     ->route('sms', '+254712345678')
     ->notify(new InvoicePaid($invoice));
 ```
 
-### 5. In-App Notifications Management
-
-```php
-// Retrieve unread notifications
-$unread = $user->unreadNotifications();
-
-foreach ($unread as $notification) {
-    echo $notification->title();
-    echo $notification->message();
-    echo $notification->link();
-
-    // Mark as read
-    $notification->markAsRead();
-}
-
-// Mark all as read
-$user->markAsRead();
-```
-
-### 6. SMS Providers & Android Gateway (SMSGate)
-
-Configure your preferred driver in `app/Config/Notifications.php`:
-
-```php
-public string $defaultSmsDriver = 'sms_gate'; // 'sms_gate', 'africas_talking', 'twilio', 'log', 'null'
-
-public array $smsGate = [
-    'serverUrl'          => 'http://localhost:8080', // Or Android Emulator: http://10.0.2.2:8080 or Cloud: https://api.sms-gate.app
-    'login'              => 'admin',
-    'password'           => 'secret',
-    'simNumber'          => 1, // Optional SIM slot (1-3)
-    'defaultCountryCode' => '+254',
-];
-```
-
-For local testing, install the [SMS Gateway for Android™](https://docs.sms-gate.app/) app on an Android device or Android Studio emulator on the same network. The driver sends JSON payloads with E.164 phone normalization directly to the device HTTP REST API.
-
-### 7. Testing
-
-```php
-use App\Notifications\InvoicePaid;
-use Jengo\Notifications\Notification;
-
-Notification::fake();
-
-$user->notify(new InvoicePaid($invoice));
-
-Notification::assertSentTo($user, InvoicePaid::class, function ($notification) use ($invoice) {
-    return $notification->invoice['id'] === $invoice['id'];
-});
-```
-
 ## Documentation
 
-For full guides on queue integration, push driver configuration (WebPush & FCM), Africa's Talking setup, Slack Block Kit, and custom drivers, visit https://lipex-org.github.io/jengophp.com/packages/notifications.
+For comprehensive guides on all delivery channels (Mail, SMS Gate, Africa's Talking, Twilio, WebPush, FCM, Slack, Webhooks), queue integration via `ShouldQueue`, in-app notifications management, and `Notification::fake()` testing doubles, visit https://lipex-org.github.io/jengophp.com/packages/notifications.
 
 ## License
 
